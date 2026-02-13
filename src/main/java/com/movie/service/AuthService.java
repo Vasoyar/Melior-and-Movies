@@ -21,7 +21,7 @@ public class AuthService {
     }
 
     public AuthResponse register(AuthRequest request) {
-        // Проверка существования
+
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new RuntimeException("Username already exists");
         }
@@ -29,7 +29,7 @@ public class AuthService {
             throw new RuntimeException("Email already exists");
         }
 
-        // Создание пользователя
+
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
@@ -37,11 +37,11 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        // Создание предпочтений
+
         UserPreference preferences = new UserPreference(savedUser);
         preferenceRepository.save(preferences);
 
-        // Генерация токена
+
         String token = "token-" + UUID.randomUUID().toString();
 
         AuthResponse response = new AuthResponse();

@@ -39,7 +39,6 @@ public class Collection {
         createdAt = LocalDateTime.now();
     }
 
-    // Конструкторы
     public Collection() {}
 
     public Collection(String title, String description, User user) {
@@ -48,7 +47,7 @@ public class Collection {
         this.user = user;
     }
 
-    // Геттеры и Сеттеры
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

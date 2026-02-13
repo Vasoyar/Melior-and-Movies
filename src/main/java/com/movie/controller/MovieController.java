@@ -24,7 +24,7 @@ public class MovieController {
         return response;
     }
 
-    // ============= ИСПРАВЛЕННЫЙ ТЕСТОВЫЙ ENDPOINT =============
+
 
     @GetMapping("/test-omdb")
     public Map<String, Object> testOmdb() {
@@ -35,13 +35,9 @@ public class MovieController {
 
             response.put("success", isConnected);
             response.put("message", isConnected ?
-                    "✅ OMDB API работает!" : "❌ OMDB API не отвечает");
+                    "OMDB API работает!" : "OMDB API не отвечает");
 
-            // УБИРАЕМ ВЫЗОВ getApiKey() - ЭТОГО МЕТОДА НЕТ!
-            // response.put("apiKey", omdbService.getApiKey() != null ? "✅ Ключ установлен" : "❌ Ключ не найден");
-
-            // Вместо этого просто пишем что ключ настроен в properties
-            response.put("apiKey", "✅ Ключ настроен в application.properties");
+            response.put("apiKey", " Ключ настроен в application.properties");
 
         } catch (Exception e) {
             response.put("success", false);

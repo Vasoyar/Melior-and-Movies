@@ -40,7 +40,6 @@ public class Movie {
         addedAt = LocalDateTime.now();
     }
 
-    // Конструкторы
     public Movie() {}
 
     public Movie(String imdbId, String title, String year, String genre) {
@@ -50,7 +49,6 @@ public class Movie {
         this.genre = genre;
     }
 
-    // Геттеры и Сеттеры
     public String getImdbId() { return imdbId; }
     public void setImdbId(String imdbId) { this.imdbId = imdbId; }
 

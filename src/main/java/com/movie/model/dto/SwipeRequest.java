@@ -5,7 +5,7 @@ public class SwipeRequest {
     private String movieId;
     private Boolean liked;
 
-    // Конструкторы
+
     public SwipeRequest() {}
 
     public SwipeRequest(String movieId, Boolean liked) {
@@ -13,7 +13,7 @@ public class SwipeRequest {
         this.liked = liked;
     }
 
-    // Геттеры и Сеттеры
+
     public String getMovieId() { return movieId; }
     public void setMovieId(String movieId) { this.movieId = movieId; }
 

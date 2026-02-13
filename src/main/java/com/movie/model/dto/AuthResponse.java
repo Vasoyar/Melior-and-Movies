@@ -7,7 +7,7 @@ public class AuthResponse {
     private String token;
     private String username;
 
-    // Конструкторы
+
     public AuthResponse() {}
 
     public AuthResponse(String message, Long userId, String token, String username) {
@@ -17,7 +17,7 @@ public class AuthResponse {
         this.username = username;
     }
 
-    // Геттеры и Сеттеры
+
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
 

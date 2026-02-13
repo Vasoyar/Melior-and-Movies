@@ -25,11 +25,6 @@ public class OmdbService {
         this.objectMapper = new ObjectMapper();
     }
 
-    // ============= ОСНОВНЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С OMDB API =============
-
-    /**
-     * Получить фильм по IMDb ID
-     */
     public Movie getMovieById(String imdbId) {
         try {
             System.out.println(" Запрос к OMDB API: фильм " + imdbId);
@@ -46,13 +41,11 @@ public class OmdbService {
 
             JsonNode root = objectMapper.readTree(response);
 
-            // Проверка на ошибку
             if (root.has("Response") && "False".equals(root.get("Response").asText())) {
                 System.out.println(" OMDB Error: " + root.get("Error").asText());
                 return null;
             }
 
-            // Преобразуем JSON в объект Movie
             Movie movie = new Movie();
             movie.setImdbId(root.get("imdbID").asText());
             movie.setTitle(root.get("Title").asText());
@@ -73,9 +66,7 @@ public class OmdbService {
         }
     }
 
-    /**
-     * Поиск фильмов по названию
-     */
+
     public List<Movie> searchMovies(String query) {
         try {
             System.out.println("Поиск в OMDB: " + query);
@@ -112,9 +103,7 @@ public class OmdbService {
         }
     }
 
-    /**
-     * Тестовый метод для проверки подключения к OMDB API
-     */
+
     public boolean testOmdbConnection() {
         try {
             Movie movie = getMovieById("tt0133093"); // The Matrix
@@ -124,9 +113,7 @@ public class OmdbService {
         }
     }
 
-    /**
-     * Конвертирует Movie в MovieDTO
-     */
+
     public MovieDTO convertToDTO(Movie movie, Double matchScore, String explanation) {
         MovieDTO dto = new MovieDTO();
         dto.setImdbId(movie.getImdbId());

@@ -17,10 +17,10 @@ public class MovieDTO {
     private String aiExplanation;
     private List<String> genres;
 
-    // Конструкторы
+
     public MovieDTO() {}
 
-    // Геттеры и Сеттеры
+
     public String getImdbId() { return imdbId; }
     public void setImdbId(String imdbId) { this.imdbId = imdbId; }
 

@@ -18,7 +18,7 @@ public class AuthRequest {
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
 
-    // Конструкторы
+
     public AuthRequest() {}
 
     public AuthRequest(String username, String email, String password) {

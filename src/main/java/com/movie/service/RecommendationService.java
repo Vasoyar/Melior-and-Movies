@@ -97,7 +97,7 @@ public class RecommendationService {
                 score += (rating / 10) * 0.2;
             }
         } catch (NumberFormatException e) {
-            // Игнорируем
+
         }
 
         return Math.min(1.0, Math.max(0.0, score));
@@ -128,6 +128,6 @@ public class RecommendationService {
     }
 
     public void processSwipe(Long userId, String movieId, boolean liked) {
-        System.out.println("User " + userId + " " + (liked ? "👍 liked" : "👎 disliked") + " movie " + movieId);
+        System.out.println("User " + userId + " " + (liked ? "liked" : "disliked") + " movie " + movieId);
     }
 }

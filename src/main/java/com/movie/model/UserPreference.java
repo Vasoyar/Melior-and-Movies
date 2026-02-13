@@ -35,14 +35,13 @@ public class UserPreference {
     @Column(name = "horror_pref")
     private Double horrorPref = 0.5;
 
-    // Конструкторы
+
     public UserPreference() {}
 
     public UserPreference(User user) {
         this.user = user;
     }
 
-    // Метод обновления предпочтений
     public void updatePreferences(String genre, boolean liked) {
         double change = liked ? 0.1 : -0.1;
         String lowerGenre = genre.toLowerCase();
@@ -60,7 +59,6 @@ public class UserPreference {
         return Math.max(0.0, Math.min(1.0, value));
     }
 
-    // Геттеры и Сеттеры
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
