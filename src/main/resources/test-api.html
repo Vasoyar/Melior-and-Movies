@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Movie Recommender API</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 20px; background: #f0f0f0; }
+        .section { background: white; padding: 15px; margin: 15px 0; border-radius: 8px; }
+        h3 { margin: 0 0 10px 0; color: #333; }
+        button { background: #4CAF50; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin: 2px; }
+        button:hover { background: #45a049; }
+        input { padding: 5px; margin: 2px; border: 1px solid #ddd; border-radius: 3px; width: 200px; }
+        .response { background: #1e1e1e; color: #fff; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; margin-top: 20px; }
+        .method { display: inline-block; padding: 2px 5px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-right: 5px; }
+        .get { background: #61affe; color: white; }
+        .post { background: #49cc90; color: white; }
+        label { display: inline-block; width: 80px; }
+        hr { margin: 15px 0; border: 0; border-top: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+<h2> Movie Recommender API Тестер</h2>
+<p>Сервер: http://localhost:8080/api</p>
+
+
+<div class="section">
+    <h3> 1. ТЕСТЫ</h3>
+    <button onclick="send('GET', '/movies/test')"><span class="method get">GET</span> /movies/test</button>
+    <button onclick="send('GET', '/movies/test-omdb')"><span class="method get">GET</span> /movies/test-omdb</button>
+</div>
+
+
+<div class="section">
+    <h3> 2. ПОИСК ФИЛЬМОВ</h3>
+    <input id="searchInput" placeholder="Название" value="matrix">
+    <button onclick="send('GET', '/movies/search?query='+document.getElementById('searchInput').value)">Поиск</button>
+    <br>
+    <input id="fetchInput" placeholder="IMDb ID" value="tt0133093">
+    <button onclick="send('GET', '/movies/fetch/'+document.getElementById('fetchInput').value)">Получить фильм</button>
+</div>
+
+
+<div class="section">
+    <h3> 3. РЕГИСТРАЦИЯ</h3>
+    <input id="regUser" placeholder="Username" value="user1"><br>
+    <input id="regEmail" placeholder="Email" value="user1@mail.com"><br>
+    <input id="regPass" placeholder="Password" value="123456"><br>
+    <button onclick="register()"><span class="method post">POST</span> /auth/register</button>
+</div>
+
+
+<div class="section">
+    <h3> 4. ВХОД</h3>
+    <input id="loginUser" placeholder="Username" value="user1"><br>
+    <input id="loginPass" placeholder="Password" value="123456"><br>
+    <button onclick="login()"><span class="method post">POST</span> /auth/login</button>
+    <p style="font-size:12px; color:#666;">После входа User ID сохранится</p>
+</div>
+
+
+<div class="section">
+    <h3> 5. РЕКОМЕНДАЦИИ</h3>
+    <input id="userId" placeholder="User ID" value="1">
+    <select id="context">
+        <option value="">Обычная</option>
+        <option value="evening">Вечер</option>
+        <option value="rainy">Дождь</option>
+    </select>
+    <button onclick="getRecommendation()"><span class="method get">GET</span> /recommendations/next</button>
+    <br><br>
+    <input id="swipeMovie" placeholder="Movie ID" value="tt0133093">
+    <select id="swipeLiked">
+        <option value="true"> Лайк</option>
+        <option value="false"> Дизлайк</option>
+    </select>
+    <button onclick="swipe()"><span class="method post">POST</span> /recommendations/swipe</button>
+</div>
+
+
+<div class="section">
+    <h3> 6. КОЛЛЕКЦИИ</h3>
+    <input id="collTitle" placeholder="Название" value="Мои фильмы"><br>
+    <input id="collDesc" placeholder="Описание" value="Лучшее"><br>
+    <button onclick="createCollection()"><span class="method post">POST</span> /collections</button>
+    <br><br>
+    <input id="addCollId" placeholder="Collection ID" value="1" style="width:80px">
+    <input id="addMovieId" placeholder="Movie ID" value="tt0133093" style="width:120px">
+    <button onclick="addToCollection()"><span class="method post">POST</span> Добавить фильм</button>
+    <br><br>
+    <button onclick="sendWithUser('/collections/user', 'GET')"><span class="method get">GET</span> Мои коллекции</button>
+</div>
+
+<hr>
+
+
+<div class="response" id="response"> Нажми любую кнопку</div>
+
+<script>
+    const BASE = 'http://localhost:8080/api';
+    let currentUserId = 1;
+
+    function send(method, url, body = null) {
+        const options = {
+            method: method,
+            headers: {'Content-Type': 'application/json'}
+        };
+        if (body) options.body = JSON.stringify(body);
+
+        document.getElementById('response').innerHTML = ' Отправка...';
+
+        fetch(BASE + url, options)
+            .then(res => res.json().then(data => ({status: res.status, data})))
+            .then(({status, data}) => {
+                document.getElementById('response').innerHTML =
+                    `[${status}] ${BASE + url}\n\n${JSON.stringify(data, null, 2)}`;
+            })
+            .catch(err => {
+                document.getElementById('response').innerHTML = ' Ошибка: ' + err.message;
+            });
+    }
+
+    function sendWithUser(url, method, body = null) {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-ID': document.getElementById('userId').value || currentUserId
+            }
+        };
+        if (body) options.body = JSON.stringify(body);
+
+        fetch(BASE + url, options)
+            .then(res => res.json().then(data => ({status: res.status, data})))
+            .then(({status, data}) => {
+                document.getElementById('response').innerHTML =
+                    `[${status}] ${BASE + url}\n\n${JSON.stringify(data, null, 2)}`;
+            });
+    }
+
+    function register() {
+        send('POST', '/auth/register', {
+            username: document.getElementById('regUser').value,
+            email: document.getElementById('regEmail').value,
+            password: document.getElementById('regPass').value
+        });
+    }
+
+    function login() {
+        send('POST', '/auth/login', {
+            username: document.getElementById('loginUser').value,
+            password: document.getElementById('loginPass').value
+        });
+    }
+
+    function getRecommendation() {
+        const userId = document.getElementById('userId').value;
+        const context = document.getElementById('context').value;
+        let url = '/recommendations/next';
+        if (context) url += '?context=' + context;
+
+        fetch(BASE + url, {headers: {'X-User-ID': userId}})
+            .then(res => res.json().then(data => ({status: res.status, data})))
+            .then(({status, data}) => {
+                document.getElementById('response').innerHTML =
+                    `[${status}] Рекомендация\n\n${JSON.stringify(data, null, 2)}`;
+            });
+    }
+
+    function swipe() {
+        sendWithUser('/recommendations/swipe', 'POST', {
+            movieId: document.getElementById('swipeMovie').value,
+            liked: document.getElementById('swipeLiked').value === 'true'
+        });
+    }
+
+    function createCollection() {
+        sendWithUser('/collections', 'POST', {
+            title: document.getElementById('collTitle').value,
+            description: document.getElementById('collDesc').value
+        });
+    }
+
+    function addToCollection() {
+        const collId = document.getElementById('addCollId').value;
+        const movieId = document.getElementById('addMovieId').value;
+        sendWithUser(`/collections/${collId}/movies/${movieId}`, 'POST');
+    }
+</script>
+</body>
+</html>
