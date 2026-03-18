@@ -1,12 +1,13 @@
 package com.movie.service;
 
-import com.movie.model.dto.AuthRequest;
-import com.movie.model.dto.AuthResponse;
+import com.movie.dto.AuthRequest;
+import com.movie.dto.AuthResponse;
 import com.movie.model.User;
 import com.movie.model.UserPreference;
 import com.movie.repository.UserRepository;
 import com.movie.repository.UserPreferenceRepository;
 import org.springframework.stereotype.Service;
+
 import java.util.UUID;
 
 @Service
@@ -21,14 +22,12 @@ public class AuthService {
     }
 
     public AuthResponse register(AuthRequest request) {
-
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username already exists");
+            throw new IllegalArgumentException("Username already exists");
         }
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new IllegalArgumentException("Email already exists");
         }
-
 
         User user = new User();
         user.setUsername(request.getUsername());
@@ -37,10 +36,8 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-
         UserPreference preferences = new UserPreference(savedUser);
         preferenceRepository.save(preferences);
-
 
         String token = "token-" + UUID.randomUUID().toString();
 

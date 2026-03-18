@@ -16,6 +16,7 @@ public class WebClientConfig {
         return WebClient.builder()
                 .baseUrl(omdbUrl)
                 .defaultHeader("Accept", "application/json")
+                .codecs(config -> config.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();
     }
 }

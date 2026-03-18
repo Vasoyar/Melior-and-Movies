@@ -1,4 +1,4 @@
-package com.movie.model.dto;
+package com.movie.dto;
 
 import java.util.List;
 
@@ -17,10 +17,7 @@ public class MovieDTO {
     private String aiExplanation;
     private List<String> genres;
 
-
-    public MovieDTO() {}
-
-
+    // Геттеры и сеттеры
     public String getImdbId() { return imdbId; }
     public void setImdbId(String imdbId) { this.imdbId = imdbId; }
 

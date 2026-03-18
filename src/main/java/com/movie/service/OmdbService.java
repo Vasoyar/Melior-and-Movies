@@ -1,12 +1,15 @@
 package com.movie.service;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.movie.model.dto.MovieDTO;
+import com.movie.dto.MovieDTO;
 import com.movie.model.Movie;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -20,14 +23,19 @@ public class OmdbService {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
-    public OmdbService() {
-        this.webClient = WebClient.create("http://www.omdbapi.com");
+    public OmdbService(WebClient omdbWebClient) {
+        this.webClient = omdbWebClient;
         this.objectMapper = new ObjectMapper();
+
+        // ⚡ Игнорируем неизвестные поля из JSON
+        this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        System.out.println("OmdbService инициализирован с игнорированием неизвестных полей");
     }
 
     public Movie getMovieById(String imdbId) {
         try {
-            System.out.println(" Запрос к OMDB API: фильм " + imdbId);
+            System.out.println("Запрос к OMDB: фильм " + imdbId);
 
             String response = webClient.get()
                     .uri(uriBuilder -> uriBuilder
@@ -39,29 +47,27 @@ public class OmdbService {
                     .bodyToMono(String.class)
                     .block();
 
-            JsonNode root = objectMapper.readTree(response);
+            System.out.println("Получен ответ от OMDB, длина: " + response.length());
 
-            if (root.has("Response") && "False".equals(root.get("Response").asText())) {
-                System.out.println(" OMDB Error: " + root.get("Error").asText());
+            // Проверка на ошибку
+            if (response.contains("\"Response\":\"False\"")) {
+                System.err.println("OMDB вернул ошибку: " + response);
                 return null;
             }
 
-            Movie movie = new Movie();
-            movie.setImdbId(root.get("imdbID").asText());
-            movie.setTitle(root.get("Title").asText());
-            movie.setYear(root.get("Year").asText());
-            movie.setGenre(root.get("Genre").asText());
-            movie.setPlot(root.get("Plot").asText());
-            movie.setPoster(root.get("Poster").asText());
-            movie.setImdbRating(root.get("imdbRating").asText());
-            movie.setDirector(root.get("Director").asText());
-            movie.setRuntime(root.get("Runtime").asText());
+            // Автоматический парсинг JSON в объект Movie
+            Movie movie = objectMapper.readValue(response, Movie.class);
+            System.out.println("Фильм: " + movie.getTitle());
 
-            System.out.println("Найден фильм: " + movie.getTitle());
             return movie;
 
+        } catch (WebClientResponseException e) {
+            System.err.println("HTTP ошибка: " + e.getStatusCode());
+            System.err.println("Тело ответа: " + e.getResponseBodyAsString());
+            return null;
         } catch (Exception e) {
-            System.err.println("Ошибка при запросе к OMDB: " + e.getMessage());
+            System.err.println("Ошибка парсинга: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }
@@ -69,9 +75,10 @@ public class OmdbService {
 
     public List<Movie> searchMovies(String query) {
         try {
-            System.out.println("Поиск в OMDB: " + query);
+            System.out.println("ПОИСК ФИЛЬМОВ: " + query);
 
-            String response = webClient.get()
+            // 1. Отправляем поисковый запрос к OMDB
+            String searchResponse = webClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .queryParam("s", query)
                             .queryParam("apikey", apiKey)
@@ -81,24 +88,47 @@ public class OmdbService {
                     .bodyToMono(String.class)
                     .block();
 
-            JsonNode root = objectMapper.readTree(response);
+            System.out.println("Ответ от OMDB (поиск): " + searchResponse);
+
+            // 2. Проверяем на ошибку
+            if (searchResponse.contains("\"Response\":\"False\"")) {
+                System.err.println("OMDB вернул ошибку: " + searchResponse);
+                return new ArrayList<>();
+            }
+
+            // 3. Парсим JSON
+            JsonNode root = objectMapper.readTree(searchResponse);
             List<Movie> movies = new ArrayList<>();
 
+            // 4. Проходим по всем найденным фильмам
             if (root.has("Search")) {
-                for (JsonNode node : root.get("Search")) {
+                JsonNode searchArray = root.get("Search");
+                System.out.println("Найдено результатов: " + searchArray.size());
+
+                for (JsonNode node : searchArray) {
                     String imdbId = node.get("imdbID").asText();
+                    System.out.println("Загружаю детали для: " + imdbId + " - " + node.get("Title").asText());
+
+                    // Получаем полную информацию о фильме
                     Movie movie = getMovieById(imdbId);
                     if (movie != null) {
                         movies.add(movie);
                     }
                 }
-                System.out.println("Найдено фильмов: " + movies.size());
+                System.out.println("Успешно загружено фильмов: " + movies.size());
+            } else {
+                System.out.println("В ответе нет поля 'Search'");
             }
 
             return movies;
 
+        } catch (WebClientResponseException e) {
+            System.err.println("HTTP ошибка: " + e.getStatusCode());
+            System.err.println("Тело ответа: " + e.getResponseBodyAsString());
+            return new ArrayList<>();
         } catch (Exception e) {
             System.err.println("Ошибка поиска: " + e.getMessage());
+            e.printStackTrace();
             return new ArrayList<>();
         }
     }
@@ -106,7 +136,7 @@ public class OmdbService {
 
     public boolean testOmdbConnection() {
         try {
-            Movie movie = getMovieById("tt0133093"); // The Matrix
+            Movie movie = getMovieById("tt0133093");
             return movie != null;
         } catch (Exception e) {
             return false;

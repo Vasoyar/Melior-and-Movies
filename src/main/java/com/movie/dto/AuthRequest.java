@@ -1,4 +1,4 @@
-package com.movie.model.dto;
+package com.movie.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -18,16 +18,7 @@ public class AuthRequest {
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
 
-
-    public AuthRequest() {}
-
-    public AuthRequest(String username, String email, String password) {
-        this.username = username;
-        this.email = email;
-        this.password = password;
-    }
-
-    // Геттеры и Сеттеры
+    // Геттеры и сеттеры
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 

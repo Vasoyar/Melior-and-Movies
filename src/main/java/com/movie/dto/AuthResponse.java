@@ -1,4 +1,4 @@
-package com.movie.model.dto;
+package com.movie.dto;
 
 public class AuthResponse {
 
@@ -6,7 +6,6 @@ public class AuthResponse {
     private Long userId;
     private String token;
     private String username;
-
 
     public AuthResponse() {}
 
@@ -17,7 +16,7 @@ public class AuthResponse {
         this.username = username;
     }
 
-
+    // Геттеры и сеттеры
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
 

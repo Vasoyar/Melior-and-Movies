@@ -1,84 +1,164 @@
 package com.movie.service;
 
-import com.movie.model.dto.MovieDTO;
+import com.movie.dto.MovieDTO;
+import com.movie.dto.SwipeRequest;
 import com.movie.model.Movie;
+import com.movie.model.User;
 import com.movie.model.UserPreference;
+import com.movie.model.UserSwipe;
 import com.movie.repository.MovieRepository;
 import com.movie.repository.UserPreferenceRepository;
+import com.movie.repository.UserRepository;
+import com.movie.repository.UserSwipeRepository;
 import org.springframework.stereotype.Service;
-import java.util.*;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Random;
 
 @Service
 public class RecommendationService {
 
     private final MovieRepository movieRepository;
     private final UserPreferenceRepository preferenceRepository;
+    private final UserRepository userRepository;
+    private final UserSwipeRepository swipeRepository;
     private final OmdbService omdbService;
 
-    private final List<String> popularMovies = Arrays.asList(
-            "tt0133093", "tt0468569", "tt1375666", "tt0111161",
-            "tt0109830", "tt0120737", "tt0167260", "tt0167261"
-    );
-
-    public RecommendationService(MovieRepository movieRepository,
-                                 UserPreferenceRepository preferenceRepository,
-                                 OmdbService omdbService) {
+    public RecommendationService(
+            MovieRepository movieRepository,
+            UserPreferenceRepository preferenceRepository,
+            UserRepository userRepository,
+            UserSwipeRepository swipeRepository,
+            OmdbService omdbService) {
         this.movieRepository = movieRepository;
         this.preferenceRepository = preferenceRepository;
+        this.userRepository = userRepository;
+        this.swipeRepository = swipeRepository;
         this.omdbService = omdbService;
     }
 
-    public MovieDTO getNextRecommendation(Long userId, String context) {
+    @Transactional
+    public void processSwipe(Long userId, String movieId, boolean liked) {
+        System.out.println("Обработка свайпа: пользователь " + userId +
+                (liked ? " лайк" : " дизлайк") + " фильм " + movieId);
+
+        // 1. Проверяем существование пользователя
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        // 2. Получаем или создаем предпочтения пользователя
         UserPreference preference = preferenceRepository.findByUserId(userId)
-                .orElse(null);
+                .orElseGet(() -> {
+                    UserPreference newPref = new UserPreference();
+                    newPref.setUser(user);
+                    return preferenceRepository.save(newPref);
+                });
 
-        List<Movie> movies = getAvailableMovies();
+        // 3. Получаем фильм (из БД или из OMDB)
+        Movie movie = movieRepository.findById(movieId)
+                .orElseGet(() -> {
+                    Movie newMovie = omdbService.getMovieById(movieId);
+                    if (newMovie != null) {
+                        return movieRepository.save(newMovie);
+                    }
+                    return null;
+                });
 
-        if (movies.isEmpty()) {
-            movies = loadPopularMovies();
+        if (movie == null) {
+            throw new RuntimeException("Movie not found with id: " + movieId);
         }
 
-        if (movies.isEmpty()) {
+        // 4. Сохраняем информацию о свайпе
+        UserSwipe swipe = new UserSwipe();
+        swipe.setUser(user);
+        swipe.setMovie(movie);
+        swipe.setLiked(liked);
+        swipe.setSwipedAt(LocalDateTime.now());
+        swipeRepository.save(swipe);
+
+        // 5. Обновляем предпочтения пользователя на основе жанров фильма
+        if (movie.getGenre() != null) {
+            String[] genres = movie.getGenre().split(",\\s*");
+            for (String genre : genres) {
+                updatePreferenceByGenre(preference, genre.toLowerCase(), liked);
+            }
+        }
+
+        preferenceRepository.save(preference);
+        System.out.println("Свайп обработан, предпочтения обновлены");
+    }
+
+    private void updatePreferenceByGenre(UserPreference pref, String genre, boolean liked) {
+        double change = liked ? 0.1 : -0.1;
+
+        if (genre.contains("action")) {
+            pref.setActionPref(clamp(pref.getActionPref() + change));
+        } else if (genre.contains("comedy")) {
+            pref.setComedyPref(clamp(pref.getComedyPref() + change));
+        } else if (genre.contains("drama")) {
+            pref.setDramaPref(clamp(pref.getDramaPref() + change));
+        } else if (genre.contains("thriller")) {
+            pref.setThrillerPref(clamp(pref.getThrillerPref() + change));
+        } else if (genre.contains("romance")) {
+            pref.setRomancePref(clamp(pref.getRomancePref() + change));
+        } else if (genre.contains("sci-fi") || genre.contains("scifi")) {
+            pref.setScifiPref(clamp(pref.getScifiPref() + change));
+        } else if (genre.contains("horror")) {
+            pref.setHorrorPref(clamp(pref.getHorrorPref() + change));
+        }
+    }
+
+    private double clamp(double value) {
+        return Math.max(0.0, Math.min(1.0, value));
+    }
+
+    public MovieDTO getNextRecommendation(Long userId, String context) {
+        // 1. Проверяем существование пользователя
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        // 2. Получаем предпочтения
+        UserPreference preference = preferenceRepository.findByUserId(userId)
+                .orElse(new UserPreference());
+
+        // 3. Получаем фильмы, которые пользователь еще не оценивал
+        List<Movie> unwatchedMovies = swipeRepository.findMoviesNotSwipedByUser(userId);
+
+        if (unwatchedMovies.isEmpty()) {
+            // Если нет неоцененных фильмов, загружаем новые
+            unwatchedMovies = loadPopularMovies();
+        }
+
+        if (unwatchedMovies.isEmpty()) {
             return null;
         }
 
-        // Простой алгоритм: выбираем случайный фильм
-        Random random = new Random();
-        Movie selected = movies.get(random.nextInt(movies.size()));
+        // 4. Вычисляем score для каждого фильма
+        Movie bestMovie = null;
+        double bestScore = -1;
 
-        double matchScore = calculateMatchScore(selected, preference, context);
-        String explanation = generateExplanation(selected, preference, matchScore, context);
-
-        return omdbService.convertToDTO(selected, matchScore, explanation);
-    }
-
-    private List<Movie> getAvailableMovies() {
-        List<Movie> movies = movieRepository.findAll();
-        if (movies.size() < 5) {
-            movies = movieRepository.findRandomMovies();
-        }
-        return movies;
-    }
-
-    private List<Movie> loadPopularMovies() {
-        List<Movie> movies = new ArrayList<>();
-        for (String imdbId : popularMovies) {
-            try {
-                Movie movie = omdbService.getMovieById(imdbId);
-                if (movie != null) {
-                    movies.add(movie);
-                    movieRepository.save(movie);
-                }
-            } catch (Exception e) {
-                System.err.println("Ошибка загрузки фильма " + imdbId);
+        for (Movie movie : unwatchedMovies) {
+            double score = calculateMatchScore(movie, preference, context);
+            if (score > bestScore) {
+                bestScore = score;
+                bestMovie = movie;
             }
         }
-        return movies;
+
+        if (bestMovie == null) {
+            bestMovie = unwatchedMovies.get(new Random().nextInt(unwatchedMovies.size()));
+            bestScore = 0.7;
+        }
+
+        // 5. Генерируем объяснение
+        String explanation = generateExplanation(bestMovie, preference, bestScore, context);
+
+        return omdbService.convertToDTO(bestMovie, bestScore, explanation);
     }
 
     private double calculateMatchScore(Movie movie, UserPreference pref, String context) {
-        if (pref == null) return 0.7;
-
         double score = 0.5;
 
         if (movie.getGenre() != null) {
@@ -88,7 +168,9 @@ public class RecommendationService {
             if (genre.contains("comedy")) score += pref.getComedyPref() * 0.3;
             if (genre.contains("drama")) score += pref.getDramaPref() * 0.3;
             if (genre.contains("thriller")) score += pref.getThrillerPref() * 0.3;
+            if (genre.contains("romance")) score += pref.getRomancePref() * 0.3;
             if (genre.contains("sci-fi")) score += pref.getScifiPref() * 0.3;
+            if (genre.contains("horror")) score += pref.getHorrorPref() * 0.3;
         }
 
         try {
@@ -97,37 +179,45 @@ public class RecommendationService {
                 score += (rating / 10) * 0.2;
             }
         } catch (NumberFormatException e) {
-
+            // ignore
         }
 
         return Math.min(1.0, Math.max(0.0, score));
     }
 
     private String generateExplanation(Movie movie, UserPreference pref, double score, String context) {
-        List<String> reasons = new ArrayList<>();
+        StringBuilder explanation = new StringBuilder();
 
         if (score > 0.8) {
-            reasons.add("Отлично соответствует вашим предпочтениям");
+            explanation.append("Отлично соответствует вашим предпочтениям. ");
         } else if (score > 0.6) {
-            reasons.add("Хорошо подходит для вас");
+            explanation.append("Хорошо подходит для вас. ");
         }
 
         if (movie.getImdbRating() != null && !movie.getImdbRating().equals("N/A")) {
-            reasons.add("Рейтинг IMDB: " + movie.getImdbRating() + "/10");
+            explanation.append("Рейтинг IMDB: ").append(movie.getImdbRating()).append("/10. ");
         }
 
         if (context != null) {
-            if (context.equals("evening")) {
-                reasons.add("Идеально для вечернего просмотра");
-            } else if (context.equals("rainy")) {
-                reasons.add("Создаст нужную атмосферу");
+            if ("evening".equals(context)) {
+                explanation.append("Идеально для вечернего просмотра. ");
+            } else if ("rainy".equals(context)) {
+                explanation.append("Создаст нужную атмосферу. ");
             }
         }
 
-        return reasons.isEmpty() ? "Мы думаем, вам понравится!" : String.join(", ", reasons);
+        return explanation.toString().trim();
     }
 
-    public void processSwipe(Long userId, String movieId, boolean liked) {
-        System.out.println("User " + userId + " " + (liked ? "liked" : "disliked") + " movie " + movieId);
+    private List<Movie> loadPopularMovies() {
+        // Загружаем популярные фильмы из OMDB
+        String[] popularIds = {"tt0133093", "tt0468569", "tt1375666", "tt0111161", "tt0109830"};
+        for (String id : popularIds) {
+            Movie movie = omdbService.getMovieById(id);
+            if (movie != null) {
+                movieRepository.save(movie);
+            }
+        }
+        return movieRepository.findRandomMovies();
     }
 }

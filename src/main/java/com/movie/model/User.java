@@ -28,7 +28,6 @@ public class User {
         createdAt = LocalDateTime.now();
     }
 
-
     public User() {}
 
     public User(String username, String email, String password) {
@@ -37,6 +36,7 @@ public class User {
         this.password = password;
     }
 
+    // Геттеры и сеттеры
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
