@@ -44,11 +44,10 @@ public class RecommendationService {
         System.out.println("Обработка свайпа: пользователь " + userId +
                 (liked ? " лайк" : " дизлайк") + " фильм " + movieId);
 
-        // 1. Проверяем существование пользователя
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
-        // 2. Получаем или создаем предпочтения пользователя
+
         UserPreference preference = preferenceRepository.findByUserId(userId)
                 .orElseGet(() -> {
                     UserPreference newPref = new UserPreference();
@@ -56,7 +55,6 @@ public class RecommendationService {
                     return preferenceRepository.save(newPref);
                 });
 
-        // 3. Получаем фильм (из БД или из OMDB)
         Movie movie = movieRepository.findById(movieId)
                 .orElseGet(() -> {
                     Movie newMovie = omdbService.getMovieById(movieId);
@@ -70,7 +68,6 @@ public class RecommendationService {
             throw new RuntimeException("Movie not found with id: " + movieId);
         }
 
-        // 4. Сохраняем информацию о свайпе
         UserSwipe swipe = new UserSwipe();
         swipe.setUser(user);
         swipe.setMovie(movie);
@@ -78,7 +75,6 @@ public class RecommendationService {
         swipe.setSwipedAt(LocalDateTime.now());
         swipeRepository.save(swipe);
 
-        // 5. Обновляем предпочтения пользователя на основе жанров фильма
         if (movie.getGenre() != null) {
             String[] genres = movie.getGenre().split(",\\s*");
             for (String genre : genres) {
@@ -115,19 +111,17 @@ public class RecommendationService {
     }
 
     public MovieDTO getNextRecommendation(Long userId, String context) {
-        // 1. Проверяем существование пользователя
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
-        // 2. Получаем предпочтения
         UserPreference preference = preferenceRepository.findByUserId(userId)
                 .orElse(new UserPreference());
 
-        // 3. Получаем фильмы, которые пользователь еще не оценивал
         List<Movie> unwatchedMovies = swipeRepository.findMoviesNotSwipedByUser(userId);
 
         if (unwatchedMovies.isEmpty()) {
-            // Если нет неоцененных фильмов, загружаем новые
+
             unwatchedMovies = loadPopularMovies();
         }
 
@@ -135,7 +129,7 @@ public class RecommendationService {
             return null;
         }
 
-        // 4. Вычисляем score для каждого фильма
+
         Movie bestMovie = null;
         double bestScore = -1;
 
@@ -152,7 +146,7 @@ public class RecommendationService {
             bestScore = 0.7;
         }
 
-        // 5. Генерируем объяснение
+
         String explanation = generateExplanation(bestMovie, preference, bestScore, context);
 
         return omdbService.convertToDTO(bestMovie, bestScore, explanation);
@@ -179,7 +173,7 @@ public class RecommendationService {
                 score += (rating / 10) * 0.2;
             }
         } catch (NumberFormatException e) {
-            // ignore
+
         }
 
         return Math.min(1.0, Math.max(0.0, score));
@@ -210,7 +204,7 @@ public class RecommendationService {
     }
 
     private List<Movie> loadPopularMovies() {
-        // Загружаем популярные фильмы из OMDB
+
         String[] popularIds = {"tt0133093", "tt0468569", "tt1375666", "tt0111161", "tt0109830"};
         for (String id : popularIds) {
             Movie movie = omdbService.getMovieById(id);

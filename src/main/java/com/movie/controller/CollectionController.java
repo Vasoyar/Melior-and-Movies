@@ -1,5 +1,6 @@
 package com.movie.controller;
 
+import com.movie.dto.CollectionRequest;
 import com.movie.model.Collection;
 import com.movie.service.CollectionService;
 import org.springframework.data.domain.Page;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -27,8 +29,7 @@ public class CollectionController {
     @PostMapping
     public ResponseEntity<?> createCollection(
             @RequestHeader(value = "X-User-ID", required = false) Long userId,
-            @RequestBody Map<String, String> request) {
-
+            @Valid @RequestBody CollectionRequest request) {
 
         if (userId == null) {
             return ResponseEntity
@@ -42,26 +43,12 @@ public class CollectionController {
                     ));
         }
 
-        // Получаем данные из запроса
-        String title = request.get("title");
-        String description = request.get("description");
-
-        // Проверяем, что название не пустое
-        if (title == null || title.trim().isEmpty()) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(Map.of(
-                            "timestamp", LocalDateTime.now().toString(),
-                            "status", 400,
-                            "error", "Bad Request",
-                            "message", "Title is required",
-                            "path", "/api/collections"
-                    ));
-        }
-
         try {
-
-            Collection collection = collectionService.createCollection(userId, title, description);
+            Collection collection = collectionService.createCollection(
+                    userId,
+                    request.getTitle(),
+                    request.getDescription()
+            );
 
             URI location = URI.create("/api/collections/" + collection.getId());
 

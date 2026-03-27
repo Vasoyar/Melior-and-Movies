@@ -33,7 +33,6 @@ public class HealthController {
 
         Map<String, Object> checks = new HashMap<>();
 
-        // Проверка базы данных
         Map<String, Object> dbCheck = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
             boolean valid = conn.isValid(1);

@@ -17,7 +17,7 @@ public class MovieDTO {
     private String aiExplanation;
     private List<String> genres;
 
-    // Геттеры и сеттеры
+
     public String getImdbId() { return imdbId; }
     public void setImdbId(String imdbId) { this.imdbId = imdbId; }
 

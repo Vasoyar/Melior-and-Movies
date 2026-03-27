@@ -2,6 +2,7 @@ package com.movie.controller;
 
 import com.movie.dto.AuthRequest;
 import com.movie.dto.AuthResponse;
+import com.movie.dto.LoginRequest;
 import com.movie.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -67,27 +68,11 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         try {
-            String username = credentials.get("username");
-            String password = credentials.get("password");
+            AuthResponse response = authService.login(request.getUsername(), request.getPassword());
 
-            if (username == null || password == null) {
-                return ResponseEntity
-                        .badRequest()
-                        .body(Map.of(
-                                "timestamp", LocalDateTime.now().toString(),
-                                "status", 400,
-                                "error", "Bad Request",
-                                "message", "Username and password are required",
-                                "path", "/api/auth/login"
-                        ));
-            }
-
-            AuthResponse response = authService.login(username, password);
-
-            return ResponseEntity
-                    .ok()
+            return ResponseEntity.ok()
                     .header("X-User-ID", response.getUserId().toString())
                     .header("X-Auth-Status", "authenticated")
                     .body(response);

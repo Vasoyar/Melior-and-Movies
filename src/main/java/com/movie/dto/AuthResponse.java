@@ -16,7 +16,7 @@ public class AuthResponse {
         this.username = username;
     }
 
-    // Геттеры и сеттеры
+
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
 

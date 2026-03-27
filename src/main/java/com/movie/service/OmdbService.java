@@ -27,7 +27,7 @@ public class OmdbService {
         this.webClient = omdbWebClient;
         this.objectMapper = new ObjectMapper();
 
-        // ⚡ Игнорируем неизвестные поля из JSON
+
         this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
         System.out.println("OmdbService инициализирован с игнорированием неизвестных полей");
@@ -49,13 +49,13 @@ public class OmdbService {
 
             System.out.println("Получен ответ от OMDB, длина: " + response.length());
 
-            // Проверка на ошибку
+
             if (response.contains("\"Response\":\"False\"")) {
                 System.err.println("OMDB вернул ошибку: " + response);
                 return null;
             }
 
-            // Автоматический парсинг JSON в объект Movie
+
             Movie movie = objectMapper.readValue(response, Movie.class);
             System.out.println("Фильм: " + movie.getTitle());
 
@@ -77,7 +77,6 @@ public class OmdbService {
         try {
             System.out.println("ПОИСК ФИЛЬМОВ: " + query);
 
-            // 1. Отправляем поисковый запрос к OMDB
             String searchResponse = webClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .queryParam("s", query)
@@ -90,17 +89,15 @@ public class OmdbService {
 
             System.out.println("Ответ от OMDB (поиск): " + searchResponse);
 
-            // 2. Проверяем на ошибку
             if (searchResponse.contains("\"Response\":\"False\"")) {
                 System.err.println("OMDB вернул ошибку: " + searchResponse);
                 return new ArrayList<>();
             }
 
-            // 3. Парсим JSON
+
             JsonNode root = objectMapper.readTree(searchResponse);
             List<Movie> movies = new ArrayList<>();
 
-            // 4. Проходим по всем найденным фильмам
             if (root.has("Search")) {
                 JsonNode searchArray = root.get("Search");
                 System.out.println("Найдено результатов: " + searchArray.size());
@@ -109,7 +106,6 @@ public class OmdbService {
                     String imdbId = node.get("imdbID").asText();
                     System.out.println("Загружаю детали для: " + imdbId + " - " + node.get("Title").asText());
 
-                    // Получаем полную информацию о фильме
                     Movie movie = getMovieById(imdbId);
                     if (movie != null) {
                         movies.add(movie);

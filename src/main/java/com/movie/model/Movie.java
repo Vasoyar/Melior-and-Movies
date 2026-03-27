@@ -71,7 +71,6 @@ public class Movie {
 
     public Movie() {}
 
-    // Геттеры и сеттеры для всех полей
     public String getImdbId() { return imdbId; }
     public void setImdbId(String imdbId) { this.imdbId = imdbId; }
 

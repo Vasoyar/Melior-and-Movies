@@ -17,7 +17,7 @@ public class UserPreference {
     private Double actionPref = 0.5;
     private Double comedyPref = 0.5;
     private Double dramaPref = 0.5;
-    private Double thrillerPref = 0.5;  // ← ЭТО ПОЛЕ ЕСТЬ?
+    private Double thrillerPref = 0.5;
     private Double romancePref = 0.5;
     private Double scifiPref = 0.5;
     private Double horrorPref = 0.5;
