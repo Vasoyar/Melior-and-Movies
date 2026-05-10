@@ -4,15 +4,17 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.movie.dto.MovieDTO;
+import com.movie.dto.MovieListItemDTO;
 import com.movie.model.Movie;
+import com.movie.repository.MovieRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class OmdbService {
@@ -22,60 +24,58 @@ public class OmdbService {
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
+    private final MovieRepository movieRepository;
 
-    public OmdbService(WebClient omdbWebClient) {
+    public OmdbService(WebClient omdbWebClient, MovieRepository movieRepository) {
         this.webClient = omdbWebClient;
         this.objectMapper = new ObjectMapper();
-
-
+        this.movieRepository = movieRepository;
         this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-        System.out.println("OmdbService инициализирован с игнорированием неизвестных полей");
     }
 
-    public Movie getMovieById(String imdbId) {
-        try {
-            System.out.println("Запрос к OMDB: фильм " + imdbId);
 
+    public Movie getMovieById(String imdbId) {
+
+        Optional<Movie> existing = movieRepository.findById(imdbId);
+        if (existing.isPresent()) {
+            System.out.println("Фильм найден в БД: " + imdbId);
+            return existing.get();
+        }
+
+
+        try {
+            System.out.println("Загрузка из OMDB: " + imdbId);
             String response = webClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .queryParam("i", imdbId)
                             .queryParam("apikey", apiKey)
-                            .queryParam("plot", "short")
+                            .queryParam("plot", "full")  // полное описание для детальной страницы
                             .build())
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
 
-            System.out.println("Получен ответ от OMDB, длина: " + response.length());
-
-
-            if (response.contains("\"Response\":\"False\"")) {
-                System.err.println("OMDB вернул ошибку: " + response);
-                return null;
-            }
-
-
             Movie movie = objectMapper.readValue(response, Movie.class);
-            System.out.println("Фильм: " + movie.getTitle());
+
+
+            movieRepository.save(movie);
+            System.out.println("Фильм сохранён в БД: " + movie.getTitle());
 
             return movie;
 
         } catch (WebClientResponseException e) {
             System.err.println("HTTP ошибка: " + e.getStatusCode());
-            System.err.println("Тело ответа: " + e.getResponseBodyAsString());
             return null;
         } catch (Exception e) {
             System.err.println("Ошибка парсинга: " + e.getMessage());
-            e.printStackTrace();
             return null;
         }
     }
 
 
-    public List<Movie> searchMovies(String query) {
+    public List<MovieListItemDTO> searchMovies(String query) {
         try {
-            System.out.println("ПОИСК ФИЛЬМОВ: " + query);
+            System.out.println("Поиск в OMDB: " + query);
 
             String searchResponse = webClient.get()
                     .uri(uriBuilder -> uriBuilder
@@ -87,58 +87,48 @@ public class OmdbService {
                     .bodyToMono(String.class)
                     .block();
 
-            System.out.println("Ответ от OMDB (поиск): " + searchResponse);
-
-            if (searchResponse.contains("\"Response\":\"False\"")) {
-                System.err.println("OMDB вернул ошибку: " + searchResponse);
-                return new ArrayList<>();
-            }
-
-
             JsonNode root = objectMapper.readTree(searchResponse);
-            List<Movie> movies = new ArrayList<>();
+            List<MovieListItemDTO> result = new ArrayList<>();
 
             if (root.has("Search")) {
-                JsonNode searchArray = root.get("Search");
-                System.out.println("Найдено результатов: " + searchArray.size());
-
-                for (JsonNode node : searchArray) {
+                for (JsonNode node : root.get("Search")) {
                     String imdbId = node.get("imdbID").asText();
-                    System.out.println("Загружаю детали для: " + imdbId + " - " + node.get("Title").asText());
+                    String title = node.get("Title").asText();
+                    String year = node.get("Year").asText();
+                    String poster = node.get("Poster").asText();
 
-                    Movie movie = getMovieById(imdbId);
-                    if (movie != null) {
-                        movies.add(movie);
+
+                    Movie movie = new Movie();
+                    movie.setImdbId(imdbId);
+                    movie.setTitle(title);
+                    movie.setYear(year);
+                    movie.setPoster(poster);
+
+                    if (movieRepository.findById(imdbId).isEmpty()) {
+                        movieRepository.save(movie);
+                        System.out.println("Сохранён базовый фильм: " + title);
                     }
+
+
+                    MovieListItemDTO dto = new MovieListItemDTO(imdbId, title, year, poster, null);
+                    result.add(dto);
                 }
-                System.out.println("Успешно загружено фильмов: " + movies.size());
-            } else {
-                System.out.println("В ответе нет поля 'Search'");
             }
 
-            return movies;
+            return result;
 
-        } catch (WebClientResponseException e) {
-            System.err.println("HTTP ошибка: " + e.getStatusCode());
-            System.err.println("Тело ответа: " + e.getResponseBodyAsString());
-            return new ArrayList<>();
         } catch (Exception e) {
             System.err.println("Ошибка поиска: " + e.getMessage());
-            e.printStackTrace();
             return new ArrayList<>();
         }
     }
 
 
-    public boolean testOmdbConnection() {
-        try {
-            Movie movie = getMovieById("tt0133093");
-            return movie != null;
-        } catch (Exception e) {
-            return false;
-        }
+    public MovieDTO getFullMovieInfo(String imdbId) {
+        Movie movie = getMovieById(imdbId);
+        if (movie == null) return null;
+        return convertToDTO(movie, null, null);
     }
-
 
     public MovieDTO convertToDTO(Movie movie, Double matchScore, String explanation) {
         MovieDTO dto = new MovieDTO();
@@ -153,11 +143,15 @@ public class OmdbService {
         dto.setRuntime(movie.getRuntime());
         dto.setMatchScore(matchScore);
         dto.setAiExplanation(explanation);
-
-        if (movie.getGenre() != null) {
-            dto.setGenres(Arrays.asList(movie.getGenre().split(",\\s*")));
-        }
-
         return dto;
+    }
+
+    public boolean testOmdbConnection() {
+        try {
+            Movie movie = getMovieById("tt0133093");
+            return movie != null;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

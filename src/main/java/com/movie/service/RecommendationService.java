@@ -154,7 +154,9 @@ public class RecommendationService {
 
     private double calculateMatchScore(Movie movie, UserPreference pref, String context) {
         double score = 0.5;
-
+        if (pref == null) {
+            return 0.5;
+        }
         if (movie.getGenre() != null) {
             String genre = movie.getGenre().toLowerCase();
 
