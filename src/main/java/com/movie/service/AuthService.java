@@ -1,5 +1,6 @@
 package com.movie.service;
 
+import com.movie.config.JwtTokenUtil;               // ← импорт JwtTokenUtil
 import com.movie.dto.AuthRequest;
 import com.movie.dto.AuthResponse;
 import com.movie.model.User;
@@ -8,17 +9,20 @@ import com.movie.repository.UserRepository;
 import com.movie.repository.UserPreferenceRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
-
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
     private final UserPreferenceRepository preferenceRepository;
+    private final JwtTokenUtil jwtTokenUtil;        // ← 1. ДОБАВЛЕНО поле
 
-    public AuthService(UserRepository userRepository, UserPreferenceRepository preferenceRepository) {
+    // Конструктор: добавляем JwtTokenUtil как зависимость
+    public AuthService(UserRepository userRepository,
+                       UserPreferenceRepository preferenceRepository,
+                       JwtTokenUtil jwtTokenUtil) { // ← 2. ДОБАВЛЕН параметр
         this.userRepository = userRepository;
         this.preferenceRepository = preferenceRepository;
+        this.jwtTokenUtil = jwtTokenUtil;          // ← 3. ИНИЦИАЛИЗАЦИЯ
     }
 
     public AuthResponse register(AuthRequest request) {
@@ -32,14 +36,15 @@ public class AuthService {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
-        user.setPassword(request.getPassword());
+        user.setPassword(request.getPassword()); // в реальном проекте нужно хешировать!
 
         User savedUser = userRepository.save(user);
 
         UserPreference preferences = new UserPreference(savedUser);
         preferenceRepository.save(preferences);
 
-        String token = "token-" + UUID.randomUUID().toString();
+        // РЕАЛЬНЫЙ JWT-ТОКЕН вместо заглушки
+        String token = jwtTokenUtil.generateToken(savedUser.getUsername());
 
         AuthResponse response = new AuthResponse();
         response.setMessage("User registered successfully");
@@ -58,7 +63,8 @@ public class AuthService {
             throw new RuntimeException("Invalid password");
         }
 
-        String token = "token-" + UUID.randomUUID().toString();
+        // РЕАЛЬНЫЙ JWT-ТОКЕН
+        String token = jwtTokenUtil.generateToken(user.getUsername());
 
         AuthResponse response = new AuthResponse();
         response.setMessage("Login successful");

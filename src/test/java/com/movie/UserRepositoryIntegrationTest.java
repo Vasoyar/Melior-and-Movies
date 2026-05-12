@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
-@Sql(scripts = "/schema-test.sql", executionPhase = ExecutionPhase.BEFORE_TEST_METHOD)
+@Sql(scripts = "/V8__schema.sql", executionPhase = ExecutionPhase.BEFORE_TEST_METHOD)
 @Transactional
 public class UserRepositoryIntegrationTest {
 
